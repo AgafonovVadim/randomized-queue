@@ -1,0 +1,42 @@
+name: CPP project with GTest CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: self-hosted
+
+    env:
+      CC: clang
+      CXX: clang++
+
+    steps:
+    - name: Checkout submodules
+      uses: actions/checkout@v3
+      with:
+        submodules: recursive
+
+    - name: Check for bad words
+      run: "! grep -R -n -w -f .bad_words src libraries"
+    - name: Run clang format
+      run: "find . -iname *.h -o -iname *.hpp -o -iname *.cpp -exec clang-format --dry-run --Werror -style=file {} +"
+
+    - name: Build default
+      run: mkdir build && cmake -S. -Bbuild -DUSE_CLANG_TIDY=TRUE -DTESTS_BUILD_TYPE=NONE -DCMAKE_BUILD_TYPE=Release && cmake --build build
+    - name: Run default tests
+      timeout-minutes: 2
+      run: ./build/libraries/RandomizedQueue/tests
+
+    - name: Build ASAN
+      run: mkdir build_ASAN && cmake -S. -Bbuild_ASAN -DTESTS_BUILD_TYPE=ASAN -DCMAKE_BUILD_TYPE=Debug && cmake --build build_ASAN
+    - name: Run ASAN tests
+      timeout-minutes: 5
+      run: ./build_ASAN/libraries/RandomizedQueue/tests
+
+    - name: Build USAN
+      run: mkdir build_USAN && cmake -S. -Bbuild_USAN -DTESTS_BUILD_TYPE=USAN -DCMAKE_BUILD_TYPE=Debug && cmake --build build_USAN
+    - name: Run USAN tests
+      timeout-minutes: 3
+      run: ./build_USAN/libraries/RandomizedQueue/tests
+
